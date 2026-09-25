@@ -16,7 +16,6 @@ export async function middleware(request: NextRequest) {
           list.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, {
               ...options,
-              // ⚠️ Paksa secure=false di development HTTP
               secure: process.env.NODE_ENV === 'production',
               sameSite: 'lax',
               path: '/',
@@ -30,6 +29,11 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const path = request.nextUrl.pathname
 
+  // ⚡ JANGAN intercept API routes — biarkan API route sendiri yang handle auth
+  if (path.startsWith('/api/')) {
+    return response
+  }
+
   const isAuthPage =
     path.startsWith('/login') ||
     path.startsWith('/register') ||
@@ -38,8 +42,8 @@ export async function middleware(request: NextRequest) {
 
   const isPublicAsset =
     path.startsWith('/_next') ||
-    path.startsWith('/api/public') ||
-    path.startsWith('/favicon.ico')
+    path.startsWith('/favicon.ico') ||
+    /\.(svg|png|jpg|jpeg|gif|webp|ico)$/.test(path)
 
   if (!user && !isAuthPage && !isPublicAsset) {
     return NextResponse.redirect(new URL('/login', request.url))
